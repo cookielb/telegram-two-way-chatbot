@@ -43,6 +43,63 @@
 
 AI 内容拦截不等于自动封禁；管理员可在审核入口决定是否拉黑。原有验证失败和限流规则仍可能封禁用户。
 
+# （首次部署必读）配置 Telegram Bot和群组
+
+### 创建 Bot 与获取群组 ID
+**FORUM_GROUP_ID 必须填写管理员话题群的完整数字 ID。它不是管理员用户 ID、群链接，也不是某个话题的 ID。** 请直接复制机器人返回的“群组ID”，保留负号，通常以 -100 开头。
+
+**1. 创建机器人，获取 BOT_TOKEN**
+
+- 在 Telegram 打开官方 [@BotFather](https://t.me/BotFather)，核对账号身份，避免同名账号。
+- 发送 /newbot，按提示输入显示名称和唯一用户名；用户名通常以 bot 结尾。
+- BotFather 返回 API Token，将它填写到 .env 的 BOT_TOKEN。Token 。
+
+**2. 创建管理员群并开启“话题”**
+
+- 新建一个用于接收信息的 Telegram 群组。
+- （重要）进入群资料 → 编辑/管理群组 → 找到“话题 / Topics”并开启。
+- 开启后确认群中出现 General/默认话题，不使用频道或普通无话题群。
+- 如果没有 Topics 选项，确认你是群主，更新官方客户端，并检查当前群是否满足 Telegram 开启话题的条件；必要时创建新的话题群。
+
+**3. 添加 Bot 并赋予权限**
+
+- 将刚创建的 Bot添加到群组（复制Bot用户名，群组中邀请新成员，粘贴添加Bot）。
+- 群资料 → 管理员 → 添加管理员 → 选择 Bot。
+- 开启“管理话题 / Manage Topics”，并确保能发送文字和媒体。删除消息权限可按需要开启。（弄不明白就全部授予）。
+- 管理话题权限不足会导致创建、检查或重新打开话题失败。
+
+**4. 不知道 ID 时，先以最小配置启动**
+
+可以先在 .env 填写真实 Token，暂时使用：
+```env
+BOT_TOKEN=your_telegram_bot_token 必填
+FORUM_GROUP_ID=0
+ADMIN_IDS=
+```
+**5. 在目标群发送 /getid**
+启动 Bot 后，在刚创建的群内发送 /getid。
+- 机器人会返回两行，例如：
+
+```text
+群组ID: -1001234567890
+用户ID: 123456789
+```
+
+对应填写：
+
+```env
+FORUM_GROUP_ID=-1001234567890
+ADMIN_IDS=123456789
+```
+
+**6. 保存并重新加载配置**
+
+```bash
+docker compose up -d --force-recreate
+docker compose logs --tail=100
+```
+
+
 ## Docker 部署
 
 服务器需安装 Docker 和 Docker Compose。可选在线镜像部署（无需下载源码或构建），或本地源码构建。两种方式使用相同的 .env 和 data 数据目录。
@@ -113,12 +170,12 @@ mkdir -p data
 编辑 .env，至少填写：
 
 ```env
-BOT_TOKEN=your_telegram_bot_token 必填
-FORUM_GROUP_ID=-1001234567890 必填
-ADMIN_IDS=123456789,987654321 必填（一个即可）
+BOT_TOKEN=your_telegram_bot_token （填写BotToken）
+FORUM_GROUP_ID=-1001234567890 （ - 号必须保留）
+ADMIN_IDS=123456789,987654321 （一个即可）
 DATABASE_PATH=./data/bot.db
 
-GEMINI_API_KEY=your_gemini_api_key 使用AI必填
+GEMINI_API_KEY=your_gemini_api_key （不填则不开启AI广告过滤）
 GEMINI_BASE_URL= （留空即可）
 
 ENABLE_AI_FILTER=true
