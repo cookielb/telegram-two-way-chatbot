@@ -119,7 +119,7 @@ nano .env
 
 #### 2. 创建 docker-compose.yml
 
-nano docker-compose.yml
+```nano docker-compose.yml```
 
 ```yaml
 services:
