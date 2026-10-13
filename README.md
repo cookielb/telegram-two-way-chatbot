@@ -10,7 +10,7 @@
 
 | 功能 | 本版行为 |
 | --- | --- |
-| VPS 合租咨询 | 拼车、上车、车位、价格、续费等不会被判定广告而拦截 |
+| VPS 合租咨询 | 拼车、上车、车位、价格、续费等按正常业务理解 |
 | 阶段性 AI 审核 | 默认累计 3 条消息通过自动审核后，后续跳过 AI 审核，降低调用量 |
 | 删除话题重置 | 下次发送时检测旧话题失效，重置人机验证和 AI 审核计数；答题后再建立新话题 |
 | 验证题来源 | 记录 AI / 本地题库、模型、回退原因和验证时间 |
@@ -21,7 +21,7 @@
 | 消息转发 | 尽量发送已审查版本，保留富文本、回复和媒体；支持编辑同步 |
 | 限流 | 相册按消息数量计数，编辑单独限流 |
 | 功能精简 | 移除 RSS 订阅和网络测试模块、命令、面板及专属依赖 |
-| 部署 | Docker Compose 从本地代码构建镜像 |
+| 部署 | 支持 Docker Hub 镜像在线部署和从本地代码构建 |
 
 保留的主要功能：话题管理、双向聊天、黑名单、内容审查豁免、知识库自动回复、多管理员权限。
 
@@ -45,7 +45,57 @@ AI 内容拦截不等于自动封禁；管理员可在审核入口决定是否�
 
 ## Docker 部署
 
-### 1. 准备项目
+服务器需安装 Docker 和 Docker Compose。可选在线镜像部署（无需下载源码或构建），或本地源码构建。两种方式使用相同的 .env 和 data 数据目录。
+
+### 方式一：Docker Hub 在线镜像部署
+
+#### 1. 准备目录和配置
+
+```bash
+mkdir -p /root/tg-bot-data/data
+cd /root/tg-bot-data
+curl -fL https://raw.githubusercontent.com/cookielb/telegram-two-way-chatbot/main/.env.example -o .env
+nano .env
+```
+
+填写 BOT_TOKEN、FORUM_GROUP_ID、ADMIN_IDS 和所选 AI 服务的密钥，配置说明见下面“配置 Telegram 和 AI”。DATABASE_PATH 保持 ./data/bot.db。已有部署请保留原 .env，不要用下载命令覆盖。
+
+#### 2. 创建 docker-compose.yml
+
+nano docker-compose.yml
+
+```yaml
+services:
+  tg-bot:
+    image: cookielb/telegram-two-way-chatbot:latest
+    restart: unless-stopped
+    env_file:
+      - .env
+    volumes:
+      - ./data:/app/data
+```
+
+#### 3. 拉取并启动
+
+```bash
+docker compose pull
+docker compose up -d
+```
+
+查看日志
+```bash
+docker compose logs --tail=100
+```
+
+ARM64 CPU 架构，可能需要自行编译~！
+
+#### 4. 更新和修改密钥
+
+修改 .env 时执行 docker compose up -d --force-recreate 。不要使用 docker compose restart 该命令不会加载修改后的环境变量。
+
+### 方式二：本地源码构建
+
+#### 1. 准备项目
 
 下载本仓库完整代码并进入目录。服务器需要安装 Docker 和 Docker Compose。
 
@@ -54,7 +104,7 @@ cp .env.example .env
 mkdir -p data
 ```
 
-### 2. 配置 Telegram 和 AI
+#### 2. 配置 Telegram 和 AI
 
 创建 Bot；准备启用了“话题”的超级群组，将 Bot 设为管理员并赋予管理话题、发送消息权限。
 
@@ -63,13 +113,13 @@ mkdir -p data
 编辑 .env，至少填写：
 
 ```env
-BOT_TOKEN=your_telegram_bot_token
-FORUM_GROUP_ID=-1001234567890
-ADMIN_IDS=123456789,987654321
+BOT_TOKEN=your_telegram_bot_token 必填
+FORUM_GROUP_ID=-1001234567890 必填
+ADMIN_IDS=123456789,987654321 必填（一个即可）
 DATABASE_PATH=./data/bot.db
 
-GEMINI_API_KEY=your_gemini_api_key
-GEMINI_BASE_URL=
+GEMINI_API_KEY=your_gemini_api_key 使用AI必填
+GEMINI_BASE_URL= （留空即可）
 
 ENABLE_AI_FILTER=true
 VERIFICATION_ENABLED=true
@@ -88,14 +138,18 @@ AI_ALERT_INTERVAL_SECONDS=3600
 
 若使用 OpenAI 兼容接口，填写 OPENAI_API_KEY、OPENAI_BASE_URL，并在 /panel → AI 模型设置中选择 OpenAI。仅填写密钥不会自动切换数据库中的服务选择；所选审核模型需支持相应输入，图片审核需要视觉能力。
 
-### 3. 构建和启动
+#### 3. 构建和启动
 
 ```bash
 docker compose up -d --build
+```
+
+查看日志
+```bash
 docker compose logs --tail=100
 ```
 
-本版必须使用仓库中的 Compose 文件和 Dockerfile。从上游下载 latest 镜像不包含本版改动。
+本地构建使用仓库中含 build: . 的 docker-compose.yml 和 Dockerfile；保留该文件即可继续本地构建。不要用上面的镜像版覆盖它，需并存时另存为 docker-compose.image.yml，并显式指定 -f。上游项目镜像不包含本版改动。
 
 修改代码后重新构建；仅修改 .env 中的密钥时重新创建容器：
 
@@ -155,9 +209,9 @@ docker compose up -d --force-recreate
 ## 从上游部署迁移
 
 1. 停止旧容器，备份旧代码、Compose、.env 和整个 data 目录。
-2. 上传本仓库完整代码，保留服务器上的 .env 和 data，更新新增参数。
-3. 使用本版 Compose 文件；自定义数据挂载路径需保持一致。
-4. 先在测试实例验证，再运行 docker compose up -d --build。
+2. 保留服务器上的 .env 和 data，更新新增参数。在线部署仅需镜像版 Compose 文件；本地构建需上传完整代码。
+3. 自定义数据库路径和 data 挂载路径需保持一致。
+4. 先在测试实例验证。在线部署执行 docker compose pull 和 docker compose up -d；本地构建执行 docker compose up -d --build。
 
 启动迁移增加审查、验证记录表及用户字段，沿用已有用户、黑名单和话题数据。不要同时运行两个相同 Token 的实例。
 
