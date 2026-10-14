@@ -77,6 +77,7 @@ FORUM_GROUP_ID=0
 ADMIN_IDS=
 ```
 **5. 在目标群发送 /getid**
+
 启动 Bot 后，在刚创建的群内发送 /getid。
 - 机器人会返回两行，例如：
 
