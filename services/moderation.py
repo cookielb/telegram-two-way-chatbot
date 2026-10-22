@@ -66,18 +66,27 @@ async def check_batch(updates, context, user_id, *, operation='new', precheck=Fa
             except Exception:
                 logger.exception('AI 异常通知失败，继续转发消息')
         await store.audit(user_id, message, verdict, 'precheck' if precheck else 'delivery')
+        if verdict['status'] == 'blocked':
+            # A high-confidence verdict is already a final decision. Keep the
+            # audit/filtered-message records, but do not create a human review
+            # task or notify admins as if a decision were still required.
+            await db.save_filtered_message(
+                user_id, message.message_id,
+                message.text or message.caption,
+                verdict.get('reason', '广告内容'),
+            )
+            try:
+                await messages[0].reply_text('您的消息已被系统拦截，未传递给管理员。\n\n原因：' +
+                                               verdict.get('reason', '广告内容'))
+            except Exception:
+                logger.exception('通知用户拦截结果失败，消息已保存')
+            return False
         if verdict['status'] not in {'passed', 'skipped', 'precheck_passed', 'error_allowed', 'bypassed_after_initial_review'}:
             review_id = await store.hold(updates, user_id, verdict, operation)
-            if verdict['status'] == 'blocked':
-                await db.save_filtered_message(user_id, message.message_id,
-                                               message.text or message.caption,
-                                               verdict.get('reason', '广告内容'))
             try:
-                await messages[0].reply_text(
-                    '消息已被拦截，未传递给管理员。' if verdict['status'] == 'blocked' else
-                    '消息已保存，等待管理员审核；请勿重复发送。')
+                await messages[0].reply_text('消息已保存，等待管理员审核；请勿重复发送。')
             except Exception:
-                logger.exception('通知用户审查结果失败，消息已保存')
+                logger.exception('通知用户审核结果失败，消息已保存')
             await notify_review(context, review_id)
             return False
     return True
