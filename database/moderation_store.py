@@ -58,7 +58,7 @@ async def get_review(review_id):
 async def list_reviews(before=None, limit=5):
     async with db_manager.get_connection() as connection:
         cursor = await connection.execute('''SELECT * FROM moderation_reviews
-            WHERE status IN ('held', 'rejected', 'uncertain') AND (? IS NULL OR id < ?)
+            WHERE status IN ('held', 'uncertain') AND (? IS NULL OR id < ?)
             ORDER BY id DESC LIMIT ?''', (before, before, limit))
         return [dict(zip([col[0] for col in cursor.description], row)) for row in await cursor.fetchall()]
 
