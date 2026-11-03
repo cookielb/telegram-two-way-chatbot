@@ -224,6 +224,25 @@ async def delete_message_mappings_for_user(user_id: int) -> int:
         return cursor.rowcount
 
 
+async def mark_admin_replied(user_id: int, thread_id: int):
+    """Trust only the conversation to which the reply was delivered."""
+    async with db_manager.get_connection() as db:
+        await db.execute(
+            'UPDATE users SET admin_replied = 1 WHERE user_id = ? AND thread_id = ?',
+            (user_id, thread_id),
+        )
+        await db.commit()
+
+
+async def has_admin_replied(user_id: int) -> bool:
+    async with db_manager.get_connection() as db:
+        async with db.execute(
+            'SELECT admin_replied FROM users WHERE user_id = ?', (user_id,)
+        ) as cursor:
+            row = await cursor.fetchone()
+            return bool(row and row[0])
+
+
 async def reset_user_relay_state(user_id: int) -> int:
     async with db_manager.get_connection() as db:
         try:
@@ -233,7 +252,7 @@ async def reset_user_relay_state(user_id: int) -> int:
             )
             await db.execute(
                 '''UPDATE users SET thread_id = NULL, is_verified = 0,
-                   verified_at = NULL, verification_method = NULL,
+                   verified_at = NULL, verification_method = NULL, admin_replied = 0,
                    ai_review_reset_id = (SELECT COALESCE(MAX(id), 0) FROM moderation_events)
                    WHERE user_id = ?''',
                 (user_id,)

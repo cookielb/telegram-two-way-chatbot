@@ -22,6 +22,9 @@ async def assess(message, user_id, *, precheck=False):
         return local
     if precheck:
         return {'status': 'precheck_passed', 'reason': '快速广告规则未命中，不等于 AI 审查通过'}
+    if await db.has_admin_replied(user_id):
+        return {'status': 'bypassed_after_admin_reply', 'is_spam': False,
+                'category': 'safe', 'reason': '管理员已成功回复，本轮后续消息跳过 AI 审查'}
     # Only the first N delivered messages start AI moderation. Later messages
     # remain subject to blacklist, rate limits and local safety checks.
     if await store.passed_message_count(user_id) >= config.NEW_USER_STRICT_MESSAGES:
@@ -81,7 +84,7 @@ async def check_batch(updates, context, user_id, *, operation='new', precheck=Fa
             except Exception:
                 logger.exception('通知用户拦截结果失败，消息已保存')
             return False
-        if verdict['status'] not in {'passed', 'skipped', 'precheck_passed', 'error_allowed', 'bypassed_after_initial_review'}:
+        if verdict['status'] not in {'passed', 'skipped', 'precheck_passed', 'error_allowed', 'bypassed_after_initial_review', 'bypassed_after_admin_reply'}:
             review_id = await store.hold(updates, user_id, verdict, operation)
             try:
                 await messages[0].reply_text('消息已保存，等待管理员审核；请勿重复发送。')
