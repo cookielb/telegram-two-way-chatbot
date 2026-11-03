@@ -352,6 +352,8 @@ class DatabaseManager:
                 await db.execute(f'ALTER TABLE users ADD COLUMN {name} TEXT')
         if 'ai_review_reset_id' not in columns:
             await db.execute('ALTER TABLE users ADD COLUMN ai_review_reset_id INTEGER NOT NULL DEFAULT 0')
+        if 'admin_replied' not in columns:
+            await db.execute('ALTER TABLE users ADD COLUMN admin_replied INTEGER NOT NULL DEFAULT 0')
         await db.execute('''CREATE TABLE IF NOT EXISTS verification_events (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             user_id INTEGER NOT NULL,

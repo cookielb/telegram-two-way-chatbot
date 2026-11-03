@@ -46,6 +46,7 @@ async def _handle_admin_messages(updates, context: ContextTypes.DEFAULT_TYPE):
 
     if len(updates) == 1:
         await _send_reply_to_user(updates[0], context, user["user_id"])
+        await db.mark_admin_replied(user["user_id"], first_message.message_thread_id)
         return
 
     await relay_media_group(
@@ -55,6 +56,7 @@ async def _handle_admin_messages(updates, context: ContextTypes.DEFAULT_TYPE):
         user_id=user["user_id"],
         source_side="admin",
     )
+    await db.mark_admin_replied(user["user_id"], first_message.message_thread_id)
 
 
 async def handle_admin_edit(update: Update, context: ContextTypes.DEFAULT_TYPE):
