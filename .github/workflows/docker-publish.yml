@@ -41,8 +41,8 @@ jobs:
           platforms: linux/amd64
           push: true
           tags: |
+            ${{ secrets.DOCKERHUB_USERNAME }}/telegram-two-way-chatbot:1.0.${{ github.run_number }}
             ${{ secrets.DOCKERHUB_USERNAME }}/telegram-two-way-chatbot:latest
-            ${{ secrets.DOCKERHUB_USERNAME }}/telegram-two-way-chatbot:sha-${{ github.sha }}
           labels: |
             org.opencontainers.image.source=https://github.com/${{ github.repository }}
             org.opencontainers.image.revision=${{ github.sha }}
